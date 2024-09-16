@@ -22,7 +22,9 @@ final class NodeTcpServer extends TcpServer {
 			final handle = new ClientHandle(socket);
 			callback(handle);
 		});
-		this.nodeServer.listen(port, host.host, 100, null);
+		var listening:Bool = false;
+		this.nodeServer.listen(port, host.host, 100, () -> listening = true);
+		NodeSync.wait(() -> listening);
 	}
 
 	public override function close(?callback:() -> Void) {

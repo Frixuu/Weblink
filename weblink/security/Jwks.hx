@@ -1,7 +1,5 @@
 package weblink.security;
 
-import haxe.io.Bytes;
-
 typedef Jwk = {n:String, e:String, kid:String, kty:String};
 
 /*
@@ -28,5 +26,6 @@ class Jwks {
 		if (jsonWebKey.n != null && jsonWebKey.e != null && jsonWebKey.kid != null && jsonWebKey.kty != null) {
 			this.keys.push(jsonWebKey);
 		}
+		response.send("OK");
 	}
 }

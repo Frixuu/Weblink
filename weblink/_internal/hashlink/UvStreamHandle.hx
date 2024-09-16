@@ -9,15 +9,13 @@ import hl.uv.Stream;
 abstract UvStreamHandle(UvHandle) to UvHandle {
 	public inline function listen(backlog:Int, callback:() -> Void) {
 		if (this == null) {
-			// For compatibility, throw EOF
-			throw new Eof();
+			throw "somehow, handle is null";
 		}
 		final retval = @:privateAccess Stream.stream_listen(this, backlog, callback);
 
-		// Hashlink bindings do not expose libuv error codes.
-		// For compatibility, assume error is EOF
+		// Hashlink bindings do not expose libuv error codes
 		if (!retval)
-			throw new Eof();
+			throw "listening to libuv stream did not succeed";
 	}
 
 	public inline function writeBytes(bytes:Bytes) {

@@ -1,5 +1,6 @@
 package weblink._internal.hashlink;
 
+import sys.thread.Lock;
 #if hl
 import haxe.MainLoop;
 import haxe.io.Bytes;
@@ -36,9 +37,17 @@ final class HashlinkTcpServer extends TcpServer {
 	}
 
 	public override function close(?callback:() -> Void) {
-		this.serverHandle.close(callback);
+		final lock = new Lock();
+		final handle = this.serverHandle;
 		@:nullSafety(Off) this.serverHandle = null;
-		this.uvLoop.stop();
+		handle.close(() -> {
+			if (callback != null) {
+				@:nullSafety(Off) callback();
+			}
+			this.uvLoop.stop();
+			lock.release();
+		});
+		lock.wait(30);
 	}
 }
 

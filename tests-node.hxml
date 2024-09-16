@@ -3,6 +3,8 @@
 --library buddy
 --library hxnodejs
 --define buddy-colors
+-debug
+--define source-map-content
 --macro nullSafety("weblink._internal.ds", StrictThreaded)
 --macro nullSafety("weblink._internal.nodejs", StrictThreaded)
 --js test.js
