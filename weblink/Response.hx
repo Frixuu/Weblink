@@ -7,7 +7,7 @@ import haxe.io.Eof;
 import weblink.Cookie;
 import weblink._internal.HttpStatusMessage;
 import weblink._internal.Server;
-import weblink._internal.Socket;
+import weblink._internal.hashlink.UvStreamHandle;
 
 private typedef Write = (bytes:Bytes) -> Bytes;
 
@@ -18,20 +18,20 @@ class Response {
 	public var cookies:List<Cookie> = new List<Cookie>();
 	public var write:Null<Write>;
 
-	var socket:Null<Socket>;
+	var clientStream:Null<UvStreamHandle>;
 	var server:Null<Server>;
 	var close:Bool = true;
 
-	private function new(socket:Socket, server:Server) {
-		this.socket = socket;
+	private function new(clientStream:UvStreamHandle, server:Server) {
+		this.clientStream = clientStream;
 		this.server = server;
 		contentType = "text/html";
 		status = OK;
 	}
 
 	public function sendBytes(bytes:Bytes) {
-		final socket = this.socket;
-		if (socket == null) {
+		final client = this.clientStream;
+		if (client == null) {
 			throw "trying to push more data to a Response that has already been completed";
 		}
 
@@ -41,8 +41,8 @@ class Response {
 		}
 
 		try {
-			socket.writeString(sendHeaders(bytes.length).toString());
-			socket.writeBytes(bytes);
+			client.writeString(sendHeaders(bytes.length).toString());
+			client.writeBytes(bytes);
 		} catch (_:Eof) {
 			// The connection has already been closed, silently ignore
 		}
@@ -55,7 +55,7 @@ class Response {
 		headers = new List<Header>();
 		var string = initLine();
 		string += 'Location: $path\r\n\r\n';
-		socket.writeString(string);
+		this.clientStream.writeString(string);
 		end();
 	}
 
@@ -65,12 +65,12 @@ class Response {
 
 	private function end() {
 		this.server = null;
-		final socket = this.socket;
-		if (socket != null) {
+		var client = this.clientStream;
+		if (client != null) {
 			if (this.close) {
-				socket.close();
+				client.close();
 			}
-			this.socket = null;
+			this.clientStream = null;
 		}
 	}
 

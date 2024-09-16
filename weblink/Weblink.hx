@@ -85,7 +85,7 @@ class Weblink {
 
 	public function listen(port:Int, blocking:Bool = true) {
 		this.pathNotFound = chainMiddleware(this.pathNotFound);
-		server = new Server(port, this);
+		server = new Server(this, "0.0.0.0", port);
 		server.update(blocking);
 	}
 

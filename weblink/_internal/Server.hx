@@ -1,101 +1,98 @@
 package weblink._internal;
 
 import haxe.MainLoop;
-import haxe.http.HttpMethod;
-import haxe.io.Bytes;
-import hl.uv.Loop.LoopRunMode;
-import hl.uv.Stream;
+import hl.uv.Loop;
 import sys.net.Host;
-import weblink._internal.Socket;
+import weblink._internal.hashlink.UvStreamHandle;
+import weblink._internal.hashlink.UvTcpHandle;
 
-class Server extends SocketServer {
-	// var sockets:Array<Socket>;
-	var parent:Weblink;
-	var stream:Stream;
+class Server {
+	private var app:Weblink;
+	private var uvLoop:Loop;
+	private var tcpServer:UvTcpHandle;
+
 	public var running:Bool = true;
-	var loop:hl.uv.Loop;
 
-	public function new(port:Int, parent:Weblink) {
-		// sockets = [];
-		loop = hl.uv.Loop.getDefault();
-		super(loop);
-		bind(new Host("0.0.0.0"), port);
-		noDelay(true);
-		listen(100, function() {
-			stream = accept();
-			var socket:Socket = cast stream;
-			var request:Request = null;
-			var done:Bool = false;
-			stream.readStart(function(data:Bytes) @:privateAccess {
-				if (done || data == null) {
-					// sockets.remove(socket);
-					stream.close();
-					return;
-				}
-
-				if (request == null) {
-					var lines = data.toString().split("\r\n");
-					request = new Request(lines);
-
-					if (request.pos >= request.length) {
-						done = true;
-						complete(request, socket);
-						return;
-					}
-				} else if (!done) {
-					var length = request.length - request.pos < data.length ? request.length - request.pos : data.length;
-					request.data.blit(request.pos, data, 0, length);
-					request.pos += length;
-
-					if (request.pos >= request.length) {
-						done = true;
-						complete(request, socket);
-						return;
-					}
-				}
-
-				if (request.chunked) {
-					request.chunk(data.toString());
-					if (request.chunkSize == 0) {
-						done = true;
-						complete(request, socket);
-						return;
-					}
-				}
-
-				if (request.method != Post && request.method != Put) {
-					done = true;
-					complete(request, socket);
-				}
-			});
-			// sockets.push(socket);
-		});
-		this.parent = parent;
+	public function new(app:Weblink, host:String, port:Int) {
+		this.app = app;
+		this.uvLoop = Loop.getDefault() ?? throw "cannot get default loop";
+		this.tcpServer = new UvTcpHandle(this.uvLoop);
+		this.tcpServer.bind(new Host(host), port);
+		this.tcpServer.setNodelay(true);
+		this.tcpServer.listen(100, this.handleIncomingConnection);
 	}
 
-	private function complete(request:Request, socket:Socket) {
-		@:privateAccess var response = request.response(this, socket);
+	private function handleIncomingConnection():Void {
+		var client = this.tcpServer.accept() ?? return;
+		var request:Null<Request> = null;
+		var done:Bool = false;
+
+		client.readStart(data -> @:privateAccess {
+			if (done || data == null) {
+				client.close();
+				return;
+			}
+
+			if (request == null) {
+				final lines = data.toString().split("\r\n");
+				request = new Request(lines);
+
+				if (request.pos >= request.length) {
+					done = true;
+					this.completeRequest(request, client);
+					return;
+				}
+			} else if (!done) {
+				final length = request.length - request.pos < data.length ? request.length - request.pos : data.length;
+				request.data.blit(request.pos, data, 0, length);
+				request.pos += length;
+
+				if (request.pos >= request.length) {
+					done = true;
+					this.completeRequest(request, client);
+					return;
+				}
+			}
+
+			if (request.chunked) {
+				request.chunk(data.toString());
+				if (request.chunkSize == 0) {
+					done = true;
+					this.completeRequest(request, client);
+					return;
+				}
+			}
+
+			if (request.method != Post && request.method != Put) {
+				done = true;
+				this.completeRequest(request, client);
+			}
+		});
+	}
+
+	private function completeRequest(request:Request, clientStream:UvStreamHandle) {
+		@:privateAccess var response = request.response(this, clientStream);
 
 		if (request.method == Get
-			&& @:privateAccess parent._serve
+			&& @:privateAccess this.app._serve
 			&& response.status == OK
-			&& request.path.indexOf(@:privateAccess parent._path) == 0) {
-			if (@:privateAccess parent._serveEvent(request, response)) {
+			&& request.path.indexOf(@:privateAccess this.app._path) == 0) {
+			if (@:privateAccess this.app._serveEvent(request, response)) {
 				return;
 			}
 		}
 
-		switch (parent.routeTree.tryGet(request.basePath, request.method)) {
+		switch (this.app.routeTree.tryGet(request.basePath, request.method)) {
 			case Found(handler, params):
 				request.routeParams = params;
 				handler(request, response);
 			case _:
-				switch (parent.routeTree.tryGet(request.path, request.method)) {
+				switch (this.app.routeTree.tryGet(request.path, request.method)) {
 					case Found(handler, params):
 						request.routeParams = params;
 						handler(request, response);
 					case _:
-						@:privateAccess parent.pathNotFound(request, response);
+						@:privateAccess this.app.pathNotFound(request, response);
 				}
 		}
 	}
@@ -103,13 +100,13 @@ class Server extends SocketServer {
 	public function update(blocking:Bool = true) {
 		do {
 			@:privateAccess MainLoop.tick(); // for timers
-			loop.run(NoWait);
-		} while (running && blocking);
+			this.uvLoop.run(NoWait);
+		} while (this.running && blocking);
 	}
 
-	override function close(?callb:() -> Void) {
-		super.close(callb);
-		loop.stop();
-		running = false;
+	public function close(?callback:() -> Void) {
+		this.tcpServer.close(callback);
+		this.uvLoop.stop();
+		this.running = false;
 	}
 }
