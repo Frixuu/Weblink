@@ -1,5 +1,6 @@
 package weblink._internal.hashlink;
 
+#if hl
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import hl.uv.Stream;
@@ -27,7 +28,7 @@ abstract UvStreamHandle(UvHandle) to UvHandle {
 
 		final rawBytes = (bytes : hl.Bytes).offset(0);
 		final len = bytes.length;
-		final retval = @:privateAccess Stream.stream_write(this, rawBytes, len, null);
+		final retval = @:privateAccess Stream.stream_write(this, rawBytes, len, cast null);
 
 		if (!retval)
 			// Cannot write. For compatibility, throw EOF
@@ -58,3 +59,4 @@ abstract UvStreamHandle(UvHandle) to UvHandle {
 		}
 	}
 }
+#end

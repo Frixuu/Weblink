@@ -3,8 +3,8 @@ package weblink;
 import haxe.ds.StringMap;
 import haxe.http.HttpMethod;
 import haxe.io.Bytes;
-import weblink._internal.Server;
-import weblink._internal.hashlink.UvStreamHandle;
+import weblink._internal.TcpServer.ClientHandle;
+import weblink._internal.WebServer;
 
 class Request {
 	public var cookies:List<Cookie>;
@@ -160,8 +160,8 @@ class Request {
 		return obj;
 	}
 
-	private function response(parent:Server, clientStream:UvStreamHandle):Response {
-		@:privateAccess var rep = new Response(clientStream, parent);
+	private function response(parent:WebServer, client:ClientHandle):Response {
+		@:privateAccess var rep = new Response(client, parent);
 		var connection = headers.get("Connection");
 		if (connection != null)
 			@:privateAccess rep.close = connection == "close"; // assume keep alive HTTP 1.1

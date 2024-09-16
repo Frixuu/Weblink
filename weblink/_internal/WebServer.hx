@@ -1,33 +1,25 @@
 package weblink._internal;
 
-import haxe.MainLoop;
-import hl.uv.Loop;
 import sys.net.Host;
-import weblink._internal.hashlink.UvStreamHandle;
-import weblink._internal.hashlink.UvTcpHandle;
+import weblink._internal.TcpServer;
 
-class Server {
+class WebServer {
 	private var app:Weblink;
-	private var uvLoop:Loop;
-	private var tcpServer:UvTcpHandle;
+	private var tcpServer:TcpServer;
 
 	public var running:Bool = true;
 
 	public function new(app:Weblink, host:String, port:Int) {
 		this.app = app;
-		this.uvLoop = Loop.getDefault() ?? throw "cannot get default loop";
-		this.tcpServer = new UvTcpHandle(this.uvLoop);
-		this.tcpServer.bind(new Host(host), port);
-		this.tcpServer.setNodelay(true);
-		this.tcpServer.listen(100, this.handleIncomingConnection);
+		this.tcpServer = TcpServer.create();
+		this.tcpServer.listen(new Host(host), port, this.handleIncomingConnection);
 	}
 
-	private function handleIncomingConnection():Void {
-		var client = this.tcpServer.accept() ?? return;
+	private function handleIncomingConnection(client:TcpServer.ClientHandle):Void {
 		var request:Null<Request> = null;
 		var done:Bool = false;
 
-		client.readStart(data -> @:privateAccess {
+		client.startReading(data -> @:privateAccess {
 			if (done || data == null) {
 				client.close();
 				return;
@@ -70,8 +62,8 @@ class Server {
 		});
 	}
 
-	private function completeRequest(request:Request, clientStream:UvStreamHandle) {
-		@:privateAccess var response = request.response(this, clientStream);
+	private function completeRequest(request:Request, client:TcpServer.ClientHandle) {
+		@:privateAccess var response = request.response(this, client);
 
 		if (request.method == Get
 			&& @:privateAccess this.app._serve
@@ -97,16 +89,16 @@ class Server {
 		}
 	}
 
-	public function update(blocking:Bool = true) {
+	public function update(blocking:Bool) {
+		var success:Bool;
 		do {
-			@:privateAccess MainLoop.tick(); // for timers
-			this.uvLoop.run(NoWait);
-		} while (this.running && blocking);
+			success = this.tcpServer.poll();
+		} while (success && this.running && blocking);
 	}
 
 	public function close(?callback:() -> Void) {
 		this.tcpServer.close(callback);
-		this.uvLoop.stop();
+		this.tcpServer = null;
 		this.running = false;
 	}
 }

@@ -1,5 +1,6 @@
 package weblink._internal.hashlink;
 
+#if hl
 import haxe.io.Eof;
 import hl.uv.Loop;
 import hl.uv.Tcp;
@@ -40,3 +41,4 @@ abstract UvTcpHandle(UvStreamHandle) to UvStreamHandle {
 		}
 	}
 }
+#end

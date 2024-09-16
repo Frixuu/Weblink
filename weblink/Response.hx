@@ -6,8 +6,8 @@ import haxe.io.Encoding;
 import haxe.io.Eof;
 import weblink.Cookie;
 import weblink._internal.HttpStatusMessage;
-import weblink._internal.Server;
-import weblink._internal.hashlink.UvStreamHandle;
+import weblink._internal.TcpServer;
+import weblink._internal.WebServer;
 
 private typedef Write = (bytes:Bytes) -> Bytes;
 
@@ -18,19 +18,19 @@ class Response {
 	public var cookies:List<Cookie> = new List<Cookie>();
 	public var write:Null<Write>;
 
-	var clientStream:Null<UvStreamHandle>;
-	var server:Null<Server>;
+	var client:Null<ClientHandle>;
+	var server:Null<WebServer>;
 	var close:Bool = true;
 
-	private function new(clientStream:UvStreamHandle, server:Server) {
-		this.clientStream = clientStream;
+	private function new(client:ClientHandle, server:WebServer) {
+		this.client = client;
 		this.server = server;
 		contentType = "text/html";
 		status = OK;
 	}
 
 	public function sendBytes(bytes:Bytes) {
-		final client = this.clientStream;
+		final client = this.client;
 		if (client == null) {
 			throw "trying to push more data to a Response that has already been completed";
 		}
@@ -55,7 +55,7 @@ class Response {
 		headers = new List<Header>();
 		var string = initLine();
 		string += 'Location: $path\r\n\r\n';
-		this.clientStream.writeString(string);
+		this.client.writeString(string);
 		end();
 	}
 
@@ -65,12 +65,12 @@ class Response {
 
 	private function end() {
 		this.server = null;
-		var client = this.clientStream;
+		var client = this.client;
 		if (client != null) {
 			if (this.close) {
 				client.close();
 			}
-			this.clientStream = null;
+			this.client = null;
 		}
 	}
 
