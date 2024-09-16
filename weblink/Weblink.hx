@@ -97,7 +97,7 @@ class Weblink {
 	}
 
 	public function close() {
-		server.close();
+		server?.close();
 	}
 
 	/**

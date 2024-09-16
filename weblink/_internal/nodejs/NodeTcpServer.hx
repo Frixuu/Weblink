@@ -6,6 +6,7 @@ import js.node.Buffer;
 import js.node.Net;
 import js.node.net.Server;
 import js.node.net.Socket;
+import sys.NodeSync;
 import sys.net.Host;
 import weblink._internal.TcpServer;
 
@@ -25,8 +26,16 @@ final class NodeTcpServer extends TcpServer {
 	}
 
 	public override function close(?callback:() -> Void) {
-		this.nodeServer.close(callback);
+		final nodeServer = this.nodeServer;
 		@:nullSafety(Off) this.nodeServer = null;
+		var closed:Bool = false;
+		nodeServer.close(() -> {
+			if (callback != null)
+				@:nullSafety(Off) callback();
+			nodeServer.unref();
+			closed = true;
+		});
+		NodeSync.wait(() -> closed);
 	}
 }
 
@@ -45,6 +54,7 @@ final class ClientHandle extends TcpServer.ClientHandle {
 		this.socket.on(Error, error -> {
 			callback(null);
 		});
+		this.socket.on(Timeout, () -> this.socket.destroy());
 	}
 
 	public function writeBytes(bytes:Bytes) {

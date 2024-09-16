@@ -17,7 +17,7 @@ abstract class TcpServer {
 	public static function create():TcpServer {
 		#if (hl && !nolibuv)
 		return new weblink._internal.hashlink.HashlinkTcpServer();
-		#elseif (js && hxnodejs)
+		#elseif (js && nodejs)
 		return new weblink._internal.nodejs.NodeTcpServer();
 		#else
 		#error "Weblink does not support your target platform yet!"

@@ -1,7 +1,8 @@
 -cp tests
 -main TestMain
 --library buddy
+--library hxnodejs
 --define buddy-colors
 --macro nullSafety("weblink._internal.ds", StrictThreaded)
---macro nullSafety("weblink._internal.hashlink", StrictThreaded)
--hl test.hl
+--macro nullSafety("weblink._internal.nodejs", StrictThreaded)
+--js test.js

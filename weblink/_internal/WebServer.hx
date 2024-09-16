@@ -92,7 +92,7 @@ class WebServer {
 	public function update(blocking:Bool) {
 		var success:Bool;
 		do {
-			success = this.tcpServer.poll();
+			success = this.tcpServer?.poll() ?? return;
 		} while (success && this.running && blocking);
 	}
 
