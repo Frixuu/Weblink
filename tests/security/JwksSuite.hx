@@ -7,10 +7,11 @@ import weblink.Weblink;
 import weblink.security.Jwks;
 
 using StringTools;
+using TestTools;
 using buddy.Should;
 
 class JwksSuite extends BuddySuite {
-	private var weblink:Weblink;
+	private var app:Weblink;
 
 	public function new() {
 		describe("Jwks", {
@@ -22,10 +23,9 @@ class JwksSuite extends BuddySuite {
 			};
 
 			it("endpoint can be queried", done -> {
-				weblink = TestTools.createWeblink(app -> {
-					final jwks = new Jwks();
-					app.jwks(jwks);
-				}, 2000);
+				app = new Weblink();
+				app.jwks(new Jwks());
+				app.listenTestMode(2000);
 
 				// When starting up the server, no keys should be known
 				{
@@ -70,7 +70,7 @@ class JwksSuite extends BuddySuite {
 			});
 
 			afterEach({
-				weblink?.close();
+				app?.close();
 			});
 		});
 	}
