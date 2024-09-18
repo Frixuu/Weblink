@@ -21,24 +21,24 @@ class JwksSuite extends BuddySuite {
 				kty: "RSA"
 			};
 
-			it("endpoint can be queried", {
+			it("endpoint can be queried", done -> {
 				weblink = TestTools.createWeblink(app -> {
 					final jwks = new Jwks();
-					app.jwks(jwks, "/jwks");
+					app.jwks(jwks);
 				}, 2000);
 
 				// When starting up the server, no keys should be known
 				{
 					final http = new Http("http://127.0.0.1:2000/jwks");
-					var response:Null<String> = null;
 					http.onError = e -> throw e;
-					http.onData = d -> response = d;
+					http.onData = response -> {
+						response.should.not.be(null);
+						final set = Json.parse(response);
+						Reflect.fields(set).length.should.be(1);
+						final keys = (Reflect.field(set, "keys") : Array<Any>);
+						keys.length.should.be(0);
+					};
 					http.request(false);
-					response.should.not.be(null);
-					final set = Json.parse(response);
-					Reflect.fields(set).length.should.be(1);
-					final keys = (Reflect.field(set, "keys") : Array<Any>);
-					keys.length.should.be(0);
 				}
 
 				// Upload our known key
@@ -51,20 +51,21 @@ class JwksSuite extends BuddySuite {
 				// The server should now know and return our key
 				{
 					final http = new Http("http://127.0.0.1:2000/jwks");
-					var response:Null<String> = null;
 					http.onError = e -> fail(e);
-					http.onData = d -> response = d;
+					http.onData = response -> {
+						response.should.not.be(null);
+						final set = Json.parse(response);
+						Reflect.fields(set).length.should.be(1);
+						final keys = (Reflect.field(set, "keys") : Array<Jwk>);
+						keys.length.should.be(1);
+						final key = keys[0];
+						key.e.should.be(knownKey.e);
+						key.n.should.be(knownKey.n);
+						key.kid.should.be(knownKey.kid);
+						key.kty.should.be(knownKey.kty);
+						done();
+					};
 					http.request(false);
-					response.should.not.be(null);
-					final set = Json.parse(response);
-					Reflect.fields(set).length.should.be(1);
-					final keys = (Reflect.field(set, "keys") : Array<Jwk>);
-					keys.length.should.be(1);
-					final key = keys[0];
-					key.e.should.be(knownKey.e);
-					key.n.should.be(knownKey.n);
-					key.kid.should.be(knownKey.kid);
-					key.kty.should.be(knownKey.kty);
 				}
 			});
 
