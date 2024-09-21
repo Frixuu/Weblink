@@ -92,7 +92,8 @@ class Request {
 			if (encoding.indexOf("gzip") > -1) {
 				trace("gzip not supported yet");
 			}
-			length = Std.parseInt(headers.get("Content-Length"));
+			// TODO Make headers case-insensitive
+			length = Std.parseInt(headers.get("Content-Length") ?? headers.get("content-length"));
 			data = Bytes.alloc(length);
 			pos = 0;
 			// inital data

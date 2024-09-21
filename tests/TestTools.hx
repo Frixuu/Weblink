@@ -1,16 +1,13 @@
 package;
 
-import haxe.Constraints.Function;
-import js.lib.Promise;
-import js.node.Timers;
-import jsasync.IJSAsync;
-import jsasync.JSAsyncTools;
 import weblink.Weblink;
 #if (nodejs)
+import haxe.Constraints.Function;
 import js.node.events.EventEmitter;
+import sys.NodeSync;
 #end
 
-final class TestTools implements IJSAsync {
+final class TestTools {
 	/**
 		If running on a threaded target (ie. Hashlink),
 		creates the server in a separate thread and keeps polling it,
@@ -36,58 +33,74 @@ final class TestTools implements IJSAsync {
 		#end
 	}
 
-	@:jsasync
-	public static function GET(url:String):Promise<Null<String>> {
-		var response:Null<String> = null;
-		#if (nodejs)
+	public inline static function GET(url:String):String {
+		return TestTools.requestBlocking(url, {post: false});
+	}
+
+	public inline static function POST(url:String, body:String):String {
+		return TestTools.requestBlocking(url, {post: true, postBody: body});
+	}
+
+	#if (hl)
+	private static function requestBlocking(url:String, opts:RequestOptions):String {
+		final http = new haxe.Http(url);
+		var responseString:Null<String> = null;
+		http.onError = e -> throw e;
+		http.onData = s -> responseString = s;
+		if (opts.postBody != null) {
+			http.setPostData(opts.postBody);
+		}
+		http.request(opts.post); // sys.Http#request reads sys.net.Sockets, which is blocking
+		return responseString;
+	}
+	#elseif (nodejs)
+	private static function requestBlocking(url:String, opts:RequestOptions):String {
 		final workerCode = '
 		
 			import { workerData, parentPort } from "node:worker_threads";
 
-			console.log("worker: started");
-			const url = workerData.url;
-			const res = await fetch(url);
-			console.log("worker: fetched a response");
-			parentPort.postMessage(await res.text());
-
-			parentPort.on("message", buffer => {
-				console.log("worker: got a sharedarraybuffer");
-				const arr = new Int32Array(buffer);
-				Atomics.store(arr, 0, 1);
-				Atomics.notify(arr, 0);
-			});
+			const { url, method, body } = workerData;
+			const request = new Request(url, { method: method, body: body });
+			try {
+				const response = await fetch(request);
+				parentPort.postMessage({ value: await response.text(), error: null });
+			} catch (e) {
+				parentPort.postMessage({ value: null, error: e.message });
+			}
 		';
 
 		final requestWorker = new NodeWorker(workerCode, {
 			name: "HTTP request",
 			eval: true,
-			workerData: {url: url}
+			workerData: {
+				url: url,
+				method: opts.post ? "POST" : "GET",
+				body: opts.postBody,
+			},
 		});
 
+		var response:Null<{value:Null<String>, error:Null<String>}> = null;
 		requestWorker.on(Message, value -> {
-			trace('main: worker sent us a HTTP response: ${value}');
 			response = value;
 		});
 
-		var buffer = new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT);
-		trace('main: sending a buffer to a worker');
-		requestWorker.postMessage(buffer);
-		trace('main: waiting for atomics');
-		var spins = 10;
-		do {
-			final result = js.lib.Atomics.wait(new js.lib.Int32Array(buffer), 0, 0, 10);
-			if (result != TimedOut)
-				break;
-			spins--;
-			trace("before await");
-			JSAsyncTools.jsawait(new Promise((r, _) -> {
-				Timers.setTimeout(r, 0);
-				trace("in promise");
-			}));
-		} while (spins > 0);
-		#end
-		return response;
+		// Calls deasync (native code package) to manually trigger UV event loop,
+		// otherwise I/O macrotasks are not executed.
+		// This behaviour can be kind of faked by making tests true async and simply awaiting fetch,
+		// but current Haxe status does not make that easy to do idiomatically
+		NodeSync.wait(() -> response != null);
+		if (response.error == null && response.value != null) {
+			return response.value;
+		} else {
+			throw response.error;
+		}
 	}
+	#end
+}
+
+typedef RequestOptions = {
+	post:Bool,
+	?postBody:String,
 }
 
 #if (nodejs)
