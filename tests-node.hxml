@@ -1,8 +1,10 @@
 -cp tests
 -main TestMain
 --library buddy
+--library jsasync
 --library hxnodejs
 --define buddy-colors
+--define js-es=6
 -debug
 --define source-map-content
 --macro nullSafety("weblink._internal.ds", StrictThreaded)
