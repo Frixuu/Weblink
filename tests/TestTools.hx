@@ -3,7 +3,7 @@ package;
 import weblink.Weblink;
 #if (nodejs)
 import haxe.Constraints.Function;
-import js.html.Request;
+import js.html.RequestInit;
 import js.html.Response;
 import js.lib.Promise;
 import js.node.events.EventEmitter;
@@ -58,32 +58,25 @@ final class TestTools {
 	}
 	#elseif (nodejs)
 	private static function requestBlocking(url:String, opts:RequestOptions):String {
-		final eventEmitter:IEventEmitter = new EventEmitter();
-		final request = new Request(url, {
-			method: opts.post ? "POST" : "GET",
-			body: opts.postBody
-		});
+		var response:Null<Result> = null;
 
 		// fetch is not behind a flag since Node 18 and stable since Node 21
-		final promise:Promise<Response> = untyped fetch(request);
-		promise.then(response -> response.text())
-			.then(text -> eventEmitter.emit("message", {value: text, error: null}))
-			.catchError(e -> eventEmitter.emit("message", {value: null, error: e.message}));
-
-		var response:Null<{value:Null<String>, error:Null<String>}> = null;
-		eventEmitter.once("message", value -> {
-			response = value;
-		});
+		final options:RequestInit = {method: opts.post ? "POST" : "GET", body: opts.postBody};
+		Global.fetch(url, options)
+			.then(response -> response.text())
+			.then(text -> response = Success(text))
+			.catchError(e -> response = Failure(e.message));
 
 		// Calls deasync (native code package) to manually trigger UV event loop,
 		// otherwise I/O macrotasks are not executed.
 		// This behaviour can be kind of faked by making tests true async and simply awaiting fetch,
 		// but current Haxe status does not make that easy to do idiomatically
 		NodeSync.wait(() -> response != null);
-		if (response.error == null && response.value != null) {
-			return response.value;
-		} else {
-			throw response.error;
+		switch response {
+			case Success(value):
+				return value;
+			case Failure(error):
+				throw error;
 		}
 	}
 	#end
@@ -94,7 +87,17 @@ typedef RequestOptions = {
 	?postBody:String,
 }
 
+enum Result {
+	Success(value:String);
+	Failure(error:String);
+}
+
 #if (nodejs)
+@:native("globalThis")
+extern class Global {
+	public static function fetch(url:String, options:RequestInit):Promise<Response>;
+}
+
 @:jsRequire("node:worker_threads", "Worker")
 extern class NodeWorker extends EventEmitter<NodeWorker> {
 	public function new(filenameOrScript:String, options:{}):Void;
