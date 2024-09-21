@@ -13,6 +13,11 @@ class BCryptSuite extends BuddySuite {
 				final hash = BCryptPassword.get_password_hash(password);
 				BCryptPassword.verify_password(password, hash).should.be(true);
 			});
+			it("hashes do not collide", {
+				final foo = BCryptPassword.get_password_hash("foo");
+				final bar = BCryptPassword.get_password_hash("bar");
+				foo.should.not.be(bar);
+			});
 		});
 	}
 }

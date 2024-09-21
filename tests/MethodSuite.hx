@@ -1,5 +1,4 @@
 import buddy.BuddySuite;
-import haxe.Json;
 import haxe.io.Bytes;
 import weblink.Weblink;
 
@@ -28,6 +27,10 @@ class MethodSuite extends BuddySuite {
 					final data = Bytes.ofString(Std.string(Std.random(10 * 1000))).toHex();
 					final response = "http://127.0.0.1:2000".POST(data);
 					response.should.be('POST ${data}');
+				}
+
+				{
+					(() -> "http://127.0.0.1:2000/not-a-route".GET()).should.throwAnything();
 				}
 			});
 

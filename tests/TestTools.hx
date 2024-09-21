@@ -63,7 +63,11 @@ final class TestTools {
 		// fetch is not behind a flag since Node 18 and stable since Node 21
 		final options:RequestInit = {method: opts.post ? "POST" : "GET", body: opts.postBody};
 		Global.fetch(url, options)
-			.then(response -> response.text())
+			.then(response -> if (response.status >= 400 && response.status <= 599) {
+				throw response.statusText;
+			} else {
+				response.text();
+			})
 			.then(text -> response = Success(text))
 			.catchError(e -> response = Failure(e.message));
 
