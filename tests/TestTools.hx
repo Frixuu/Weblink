@@ -3,6 +3,9 @@ package;
 import weblink.Weblink;
 #if (nodejs)
 import haxe.Constraints.Function;
+import js.html.Request;
+import js.html.Response;
+import js.lib.Promise;
 import js.node.events.EventEmitter;
 import sys.NodeSync;
 #end
@@ -55,32 +58,20 @@ final class TestTools {
 	}
 	#elseif (nodejs)
 	private static function requestBlocking(url:String, opts:RequestOptions):String {
-		final workerCode = '
-		
-			import { workerData, parentPort } from "node:worker_threads";
-
-			const { url, method, body } = workerData;
-			const request = new Request(url, { method: method, body: body });
-			try {
-				const response = await fetch(request);
-				parentPort.postMessage({ value: await response.text(), error: null });
-			} catch (e) {
-				parentPort.postMessage({ value: null, error: e.message });
-			}
-		';
-
-		final requestWorker = new NodeWorker(workerCode, {
-			name: "HTTP request",
-			eval: true,
-			workerData: {
-				url: url,
-				method: opts.post ? "POST" : "GET",
-				body: opts.postBody,
-			},
+		final eventEmitter:IEventEmitter = new EventEmitter();
+		final request = new Request(url, {
+			method: opts.post ? "POST" : "GET",
+			body: opts.postBody
 		});
 
+		// fetch is not behind a flag since Node 18 and stable since Node 21
+		final promise:Promise<Response> = untyped fetch(request);
+		promise.then(response -> response.text())
+			.then(text -> eventEmitter.emit("message", {value: text, error: null}))
+			.catchError(e -> eventEmitter.emit("message", {value: null, error: e.message}));
+
 		var response:Null<{value:Null<String>, error:Null<String>}> = null;
-		requestWorker.on(Message, value -> {
+		eventEmitter.once("message", value -> {
 			response = value;
 		});
 
