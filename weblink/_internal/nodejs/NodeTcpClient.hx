@@ -3,12 +3,8 @@ package weblink._internal.nodejs;
 #if nodejs
 import haxe.io.Bytes;
 import js.node.Buffer;
-import js.node.Net;
-import js.node.net.Server;
 import js.node.net.Socket;
-import sys.net.Host;
 import weblink._internal.TcpClient;
-import weblink._internal.TcpServer;
 
 final class NodeTcpClient extends TcpClient {
 	private var socket:Socket;
@@ -36,7 +32,7 @@ final class NodeTcpClient extends TcpClient {
 	public function closeAsync(?callback:() -> Void) {
 		final socket = this.socket;
 		if (socket != null) {
-			socket.end(callback);
+			socket.end(untyped undefined, untyped undefined, callback);
 			@:nullSafety(Off) this.socket = null;
 		}
 	}
