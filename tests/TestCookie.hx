@@ -1,5 +1,6 @@
 import haxe.Http;
 import weblink.Cookie;
+import weblink.HeaderMap;
 import weblink.Weblink;
 
 using TestingTools;
@@ -28,7 +29,7 @@ class TestCookie {
 		};
 		http.onData = _ -> {
 			#if (!nodejs || haxe >= version("4.3.0")) // see #10809
-			final headers = http.responseHeaders;
+			final headers = HeaderMap.fromCaseSensitiveSource(http.responseHeaders);
 			if (headers.get("Set-Cookie") != "foo=bar") {
 				throw 'Set-Cookie not foo=bar. got ${headers.get("Set-Cookie")}';
 			}

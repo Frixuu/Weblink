@@ -16,7 +16,7 @@ class Request {
 
 	public var ip:String;
 	public var baseUrl:String;
-	public var headers:StringMap<String>;
+	public var headers:HeaderMap;
 	public var text:String;
 	public var method:HttpMethod;
 	public var data:Bytes;
@@ -30,10 +30,9 @@ class Request {
 	var pos:Int;
 
 	private function new(lines:Array<String>) {
-		headers = new StringMap<String>();
+		this.headers = new HeaderMap();
 		data = null;
-		// for (line in lines)
-		//    Sys.println(line);
+
 		if (lines.length == 0)
 			return;
 		var index = 0;
@@ -49,9 +48,7 @@ class Request {
 		} else {
 			basePath = path;
 		}
-		// trace(basePath);
-		// trace(path);
-		// trace(first.substring(0, index - 1).toUpperCase());
+
 		method = first.substring(0, index - 1).toUpperCase();
 		for (i in 0...lines.length - 1) {
 			if (lines[i] == "") {
@@ -93,17 +90,7 @@ class Request {
 				trace("gzip not supported yet");
 			}
 
-			// Workaround for Node tests
-			// TODO: Make all header comparisons case-insensitive
-			length = Std.parseInt({
-				var contentLength = headers.get("Content-Length");
-				if (contentLength == null) {
-					headers.get("content-length");
-				} else {
-					contentLength;
-				}
-			});
-
+			length = Std.parseInt(headers.get("Content-Length"));
 			data = Bytes.alloc(length);
 			pos = 0;
 			// inital data

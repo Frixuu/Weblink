@@ -21,8 +21,7 @@ class CredentialsProvider {
 	}
 
 	public function getUsersEndpoint(request:Request, response:Response):Void {
-		response.headers = new List<Header>();
-		response.headers.add({key: 'Content-Type', value: 'application/json'});
+		response.headers.set(ContentType, "application/json");
 		var data = {
 			users: getUserList()
 		};
@@ -30,7 +29,7 @@ class CredentialsProvider {
 		response.send(jsonString);
 	}
 
-	private function getUserList() {
+	private function getUserList():Array<User> {
 		var userList = [];
 		for (user in this.in_memory_users_db) {
 			userList.push(Projection.convert(user, User));

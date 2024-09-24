@@ -3,7 +3,6 @@ package weblink;
 import haxe.http.HttpStatus;
 import haxe.io.Bytes;
 import haxe.io.Encoding;
-import haxe.io.Eof;
 import weblink.Cookie;
 import weblink._internal.HttpStatusMessage;
 import weblink._internal.TcpClient;
@@ -14,7 +13,7 @@ private typedef Write = (bytes:Bytes) -> Bytes;
 class Response {
 	public var status:HttpStatus;
 	public var contentType:String;
-	public var headers:Null<List<Header>>;
+	public var headers:HeaderMap;
 	public var cookies:List<Cookie> = new List<Cookie>();
 	public var write:Null<Write>;
 
@@ -25,6 +24,7 @@ class Response {
 	private function new(server:WebServer, client:TcpClient) {
 		this.server = server;
 		this.client = client;
+		this.headers = new HeaderMap();
 		contentType = "text/html";
 		status = OK;
 	}
@@ -43,7 +43,7 @@ class Response {
 		try {
 			client.writeString(sendHeaders(bytes.length).toString());
 			client.writeBytes(bytes);
-		} catch (_:Eof) {
+		} catch (_) {
 			// The connection has already been closed, silently ignore
 		}
 
@@ -52,7 +52,6 @@ class Response {
 
 	public inline function redirect(path:String) {
 		this.status = MovedPermanently;
-		this.headers = new List<Header>();
 		this.client.writeString(initLine() + 'Location: $path\r\n\r\n');
 		this.end();
 	}
@@ -62,13 +61,11 @@ class Response {
 	}
 
 	private function end() {
-		this.server = null;
 		final client = this.client;
-		if (client != null) {
-			if (this.close) {
-				client.closeAsync();
-			}
-			this.client = null;
+		this.server = null;
+		this.client = null;
+		if (client != null && this.close) {
+			client.closeAsync();
 		}
 	}
 
@@ -79,19 +76,21 @@ class Response {
 	public inline function sendHeaders(length:Int):StringBuf {
 		var string = new StringBuf();
 		string.add(initLine()
-			+ // 'Acess-Control-Allow-Origin: *\r\n' +
-			'Connection: ${close ? "close" : "keep-alive"}\r\n'
+			+ 'Connection: ${close ? "close" : "keep-alive"}\r\n'
 			+ 'Content-type: $contentType\r\n'
 			+ 'Content-length: $length\r\n');
 		for (cookie in cookies) {
 			string.add("Set-Cookie: " + cookie.resolveToResponseString() + "\r\n");
 		}
-		if (headers != null) {
-			for (header in headers) {
-				string.add(header.key + ": " + header.value + "\r\n");
+
+		for (key => values in this.headers) {
+			for (value in values) {
+				string.add(key + ": " + value + "\r\n");
 			}
-			headers = null;
 		}
+
+		this.headers.clear(); // why are we clearing this?
+
 		string.add("\r\n");
 		return string;
 	}
