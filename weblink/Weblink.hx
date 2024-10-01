@@ -5,13 +5,15 @@ import weblink.Handler;
 import weblink._internal.Server;
 import weblink._internal.ds.RadixTree;
 import weblink.middleware.Middleware;
+import weblink.routing.IHttpRouter;
 import weblink.security.CredentialsProvider;
 import weblink.security.Jwks;
 import weblink.security.OAuth.OAuthEndpoints;
 
 using haxe.io.Path;
 
-class Weblink {
+@:using(weblink.routing.HttpRoutingTools)
+class Weblink implements IHttpRouter<Weblink> {
 	public var server:Null<Server>;
 	public var routeTree:RadixTree<Handler>;
 
@@ -60,27 +62,10 @@ class Weblink {
 		return handler;
 	}
 
-	private function _updateRoute(path:String, method:HttpMethod, handler:Handler) {
-		this.routeTree.put(path, method, chainMiddleware(handler));
-	}
-
-	public function get(path:String, func:Handler, ?middleware:Middleware) {
-		if (middleware != null) {
-			func = middleware(func);
-		}
-		_updateRoute(path, Get, func);
-	}
-
-	public function post(path:String, func:Handler) {
-		_updateRoute(path, Post, func);
-	}
-
-	public function put(path:String, func:Handler) {
-		_updateRoute(path, Put, func);
-	}
-
-	public function head(path:String, func:Handler) {
-		_updateRoute(path, Head, func);
+	@:inheritDoc
+	public function handleHttp(method:HttpMethod, path:String, handler:Handler):Weblink {
+		this.routeTree.put(path, method, this.chainMiddleware(handler));
+		return this;
 	}
 
 	public function listen(port:Int, blocking:Bool = true) {
@@ -104,20 +89,20 @@ class Weblink {
 	 * Add JSON Web Key Sets HTTP endpoint
 	 */
 	public function jwks(jwks:Jwks, ?path = "/jwks"):Weblink {
-		get(path, (request:Request, response:Response) -> jwks.jwksGetEndpoint(request, response));
-		post(path, (request:Request, response:Response) -> jwks.jwksPostEndpoint(request, response));
+		this.get(path, (request:Request, response:Response) -> jwks.jwksGetEndpoint(request, response));
+		this.post(path, (request:Request, response:Response) -> jwks.jwksPostEndpoint(request, response));
 		return this;
 	}
 
 	public function users(credentialsProvider:CredentialsProvider, ?path = "/users"):Weblink {
-		get(path, credentialsProvider.getUsersEndpoint);
-		post(path, credentialsProvider.postUsersEndpoint);
+		this.get(path, credentialsProvider.getUsersEndpoint);
+		this.post(path, credentialsProvider.postUsersEndpoint);
 		return this;
 	}
 
 	public function oauth2(secret_key:String, credentialsProvider:CredentialsProvider, ?path = "/token"):Weblink {
 		var oauth2 = new OAuthEndpoints(path, secret_key, credentialsProvider);
-		post(path, oauth2.login_for_access_token);
+		this.post(path, oauth2.login_for_access_token);
 		return this;
 	}
 
