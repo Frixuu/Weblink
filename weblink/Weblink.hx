@@ -15,7 +15,6 @@ import weblink.security.OAuth.OAuthEndpoints;
 
 using haxe.io.Path;
 
-@:using(weblink.routing.HttpRoutingTools)
 class Weblink implements IHttpRouter<Weblink> {
 	public var server:Null<Server>;
 
@@ -86,27 +85,6 @@ class Weblink implements IHttpRouter<Weblink> {
 
 	public function close() {
 		server.close();
-	}
-
-	/**
-	 * Add JSON Web Key Sets HTTP endpoint
-	 */
-	public function jwks(jwks:Jwks, ?path = "/jwks"):Weblink {
-		this.get(path, (request:Request, response:Response) -> jwks.jwksGetEndpoint(request, response));
-		this.post(path, (request:Request, response:Response) -> jwks.jwksPostEndpoint(request, response));
-		return this;
-	}
-
-	public function users(credentialsProvider:CredentialsProvider, ?path = "/users"):Weblink {
-		this.get(path, credentialsProvider.getUsersEndpoint);
-		this.post(path, credentialsProvider.postUsersEndpoint);
-		return this;
-	}
-
-	public function oauth2(secret_key:String, credentialsProvider:CredentialsProvider, ?path = "/token"):Weblink {
-		var oauth2 = new OAuthEndpoints(path, secret_key, credentialsProvider);
-		this.post(path, oauth2.login_for_access_token);
-		return this;
 	}
 
 	private inline function _serveEvent(request:Request, response:Response):Bool {

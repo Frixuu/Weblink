@@ -9,6 +9,7 @@ import weblink.middleware.Middleware;
 
 **/
 @:using(weblink.routing.HttpRoutingTools)
+@:using(weblink.security.SecurityRoutingTools)
 interface IHttpRouter<T:IHttpRouter<T>> {
 	/**
 		Adds middleware to new HTTP routes. Does not affect already registered routes.
