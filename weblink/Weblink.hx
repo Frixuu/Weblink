@@ -15,7 +15,7 @@ import weblink.security.OAuth.OAuthEndpoints;
 
 using haxe.io.Path;
 
-class Weblink implements IHttpRouter<Weblink> {
+class Weblink implements IHttpRouter {
 	public var server:Null<Server>;
 
 	private final httpRouter:HttpRouter;
@@ -65,7 +65,7 @@ class Weblink implements IHttpRouter<Weblink> {
 		@param path The path prefix to the subgroup.
 		@param configure The function that configures the subgroup.
 	**/
-	public function group(path:String, configure:(router:SubRouter) -> Void):Weblink {
+	public function group(path:String, configure:(router:IHttpRouter) -> Void):Weblink {
 		this.httpRouter.group(path, configure);
 		return this;
 	}

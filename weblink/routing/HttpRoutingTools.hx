@@ -5,8 +5,6 @@ import haxe.macro.Expr.FunctionArg;
 #if macro
 import haxe.macro.Context;
 import haxe.macro.Expr.Field;
-import haxe.macro.Expr.Function;
-import haxe.macro.Expr.TypeParamDecl;
 #else
 import weblink.middleware.Middleware;
 #end
@@ -48,9 +46,15 @@ final class HttpRoutingTools {
 			}
 
 			final expr = if (method != Get) {
-				macro return router.handleHttp($v{method}, path, handler);
+				macro {
+					router.handleHttp($v{method}, path, handler);
+					return router;
+				}
 			} else {
-				macro return router.handleHttp($v{method}, path, middleware != null ? middleware(handler) : handler);
+				macro {
+					router.handleHttp($v{method}, path, middleware != null ? middleware(handler) : handler);
+					return router;
+				}
 			};
 
 			fields.push({
@@ -60,7 +64,7 @@ final class HttpRoutingTools {
 				name: (method : String).toLowerCase(),
 				pos: pos,
 				kind: FFun({
-					params: [{name: "T", constraints: [macro :weblink.routing.IHttpRouter<T>]}],
+					params: [{name: "T", constraints: [macro :weblink.routing.IHttpRouter]}],
 					ret: macro :T,
 					args: args,
 					expr: expr,

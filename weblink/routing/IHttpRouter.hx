@@ -10,7 +10,7 @@ import weblink.middleware.Middleware;
 **/
 @:using(weblink.routing.HttpRoutingTools)
 @:using(weblink.security.SecurityRoutingTools)
-interface IHttpRouter<T:IHttpRouter<T>> {
+interface IHttpRouter {
 	/**
 		Adds middleware to new HTTP routes. Does not affect already registered routes.
 
@@ -18,7 +18,7 @@ interface IHttpRouter<T:IHttpRouter<T>> {
 		Middleware can be used for logging, authentication and many more.
 		@param middleware The middleware to apply to the handler.
 	**/
-	public function use(middleware:Middleware):T;
+	public function use(middleware:Middleware):IHttpRouter;
 
 	/**
 		Registers an HTTP handler for the given path and method.
@@ -26,12 +26,12 @@ interface IHttpRouter<T:IHttpRouter<T>> {
 		@param path Path to the resource, e.g. `"/article/:slug"`.
 		@param handler The callback to respond to the request with.
 	**/
-	public function handleHttp(method:HttpMethod, path:String, handler:Handler):T;
+	public function handleHttp(method:HttpMethod, path:String, handler:Handler):IHttpRouter;
 
 	/**
 		Registers a router subgroup. It can its own middleware.
 		@param path The path prefix to the subgroup.
 		@param configure The function that configures the subgroup.
 	**/
-	public function group(path:String, configure:(group:SubRouter) -> Void):T;
+	public function group(path:String, configure:(group:IHttpRouter) -> Void):IHttpRouter;
 }

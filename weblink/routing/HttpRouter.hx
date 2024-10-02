@@ -7,7 +7,7 @@ import weblink.middleware.Middleware;
 import weblink.middleware.MiddlewareTools.flatten;
 
 @:nullSafety(StrictThreaded)
-class HttpRouter implements IHttpRouter<HttpRouter> {
+class HttpRouter implements IHttpRouter {
 	/**
 		The route tree for HTTP handlers.
 	**/
@@ -52,7 +52,7 @@ class HttpRouter implements IHttpRouter<HttpRouter> {
 		@param path The path prefix to the subgroup.
 		@param configure The function that configures the subgroup.
 	**/
-	public function group(path:String, configure:(group:SubRouter) -> Void):HttpRouter {
+	public function group(path:String, configure:(group:IHttpRouter) -> Void):HttpRouter {
 		final subrouter = new SubRouter();
 		configure(subrouter);
 		for (registration in @:privateAccess subrouter.registeredHandlers) {
