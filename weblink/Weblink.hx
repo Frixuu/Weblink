@@ -5,7 +5,10 @@ import weblink.Handler;
 import weblink._internal.Server;
 import weblink._internal.ds.RadixTree;
 import weblink.middleware.Middleware;
+import weblink.middleware.MiddlewareTools.flatten;
+import weblink.routing.HttpRouter;
 import weblink.routing.IHttpRouter;
+import weblink.routing.SubRouter;
 import weblink.security.CredentialsProvider;
 import weblink.security.Jwks;
 import weblink.security.OAuth.OAuthEndpoints;
@@ -15,9 +18,8 @@ using haxe.io.Path;
 @:using(weblink.routing.HttpRoutingTools)
 class Weblink implements IHttpRouter<Weblink> {
 	public var server:Null<Server>;
-	public var routeTree:RadixTree<Handler>;
 
-	private var middlewareToChain:Array<Middleware> = [];
+	private final httpRouter:HttpRouter;
 
 	/**
 		Default anonymous function defining the behavior should a requested route not exist.
@@ -34,7 +36,7 @@ class Weblink implements IHttpRouter<Weblink> {
 	var _cors:String = "*";
 
 	public function new() {
-		this.routeTree = new RadixTree();
+		this.httpRouter = new HttpRouter();
 	}
 
 	/**
@@ -43,33 +45,34 @@ class Weblink implements IHttpRouter<Weblink> {
 		Middleware is a function that intercepts incoming requests and takes action on them.
 		Middleware can be used for logging, authentication and many more.
 	**/
-	public function use(middleware:Middleware) {
-		// Idea: Should adding middleware be disallowed once some routes are defined?
-		this.middlewareToChain.push(middleware);
+	public inline function use(middleware:Middleware):Weblink {
+		this.httpRouter.use(middleware);
+		return this;
 	}
 
 	/**
-		"Flattens" the provided handler,
-		so that we can avoid middleware lookup at runtime.
+		Registers an HTTP handler for the given path and method.
+		@param method The HTTP verb to register the handler to, e.g. `Get`.
+		@param path Path to the resource, e.g. `"/article/:slug"`.
+		@param handler The callback to respond to the request with.
 	**/
-	private function chainMiddleware(handler:Handler):Handler {
-		var i = this.middlewareToChain.length - 1;
-		while (i >= 0) {
-			final middleware = this.middlewareToChain[i];
-			handler = middleware(handler);
-			i -= 1;
-		}
-		return handler;
+	public inline function handleHttp(method:HttpMethod, path:String, handler:Handler):Weblink {
+		this.httpRouter.handleHttp(method, path, handler);
+		return this;
 	}
 
-	@:inheritDoc
-	public function handleHttp(method:HttpMethod, path:String, handler:Handler):Weblink {
-		this.routeTree.put(path, method, this.chainMiddleware(handler));
+	/**
+		Registers a router subgroup. It can its own middleware.
+		@param path The path prefix to the subgroup.
+		@param configure The function that configures the subgroup.
+	**/
+	public function group(path:String, configure:(router:SubRouter) -> Void):Weblink {
+		this.httpRouter.group(path, configure);
 		return this;
 	}
 
 	public function listen(port:Int, blocking:Bool = true) {
-		this.pathNotFound = chainMiddleware(this.pathNotFound);
+		this.pathNotFound = flatten(this.httpRouter.httpMiddlewareChain, this.pathNotFound);
 		server = new Server(port, this);
 		server.update(blocking);
 	}

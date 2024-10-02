@@ -81,12 +81,13 @@ class Server extends SocketServer {
 			}
 		}
 
-		switch (parent.routeTree.tryGet(request.basePath, request.method)) {
+		final router = @:privateAccess parent.httpRouter;
+		switch (router.httpRouteTree.tryGet(request.basePath, request.method)) {
 			case Found(handler, params):
 				request.routeParams = params;
 				handler(request, response);
 			case _:
-				switch (parent.routeTree.tryGet(request.path, request.method)) {
+				switch (router.httpRouteTree.tryGet(request.path, request.method)) {
 					case Found(handler, params):
 						request.routeParams = params;
 						handler(request, response);
