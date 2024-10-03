@@ -3,7 +3,6 @@ package tests.security;
 import haxe.Http;
 import haxe.Json;
 import weblink.security.CredentialsProvider;
-import weblink.security.OAuth.OAuthEndpoints;
 import weblink.security.OAuth;
 
 class TestOAuth2 {
@@ -23,7 +22,7 @@ class TestOAuth2 {
 		var password = "secret";
 		var scope = "";
 
-		sys.thread.Thread.create(() -> {
+		{
 			var http = new Http("http://localhost:2000/token");
 			http.setPostData('grant_type=${grant_type}&username=${username}&password=${password}&scope=${scope}');
 			http.request(false);
@@ -36,12 +35,8 @@ class TestOAuth2 {
 				throw 'empty access token';
 			}
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
+
 		trace("done");
 	}
 

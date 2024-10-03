@@ -10,7 +10,11 @@ import weblink.security.OAuth;
 class EndpointExample {
 	var oAuth:OAuth;
 
-	public function new(tokenUrl:String, secret_key:String, credentialsProvider:CredentialsProvider) {
+	public function new(
+		tokenUrl:String,
+		secret_key:String,
+		credentialsProvider:CredentialsProvider
+	) {
 		this.oAuth = new OAuth(tokenUrl, secret_key, credentialsProvider);
 	}
 
@@ -45,7 +49,7 @@ class TestEndpointExample {
 		var password = "secret";
 		var scope = "";
 
-		sys.thread.Thread.create(() -> {
+		{
 			var http = new Http("http://localhost:2000/token");
 			http.setPostData('grant_type=${grant_type}&username=${username}&password=${password}&scope=${scope}');
 			http.request(false);
@@ -63,21 +67,22 @@ class TestEndpointExample {
 			usersMeRequest.request(false);
 			var testValueGet = '{"username":"johndoe","email":"johndoe@example.com","full_name":"John Doe","disabled":false}';
 			if (usersMeRequest.responseData != testValueGet)
-				throw "/users/me/: response data does not match: " + usersMeRequest.responseData + " data: " + testValueGet;
+				throw "/users/me/: response data does not match: "
+					+ usersMeRequest.responseData
+					+ " data: "
+					+ testValueGet;
 
 			var usersMeItemsRequest = new Http("http://localhost:2000/users/me/items/");
 			usersMeItemsRequest.setHeader("Authorization", 'bearer ${data.access_token}');
 			usersMeItemsRequest.request(false);
 			var testItemsGet = '[{"item_id":"Foo","owner":"johndoe"}]';
 			if (usersMeItemsRequest.responseData != testItemsGet)
-				throw "/users/me/: response data does not match: " + usersMeItemsRequest.responseData + " data: " + testItemsGet;
+				throw "/users/me/: response data does not match: "
+					+ usersMeItemsRequest.responseData
+					+ " data: "
+					+ testItemsGet;
 
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
 
 		trace("done");

@@ -2,10 +2,11 @@ package weblink;
 
 import haxe.http.HttpMethod;
 import haxe.io.Bytes;
-import weblink._internal.Server;
+import weblink._internal.WebServer;
 import weblink.http.HeaderMap;
 import weblink.http.HeaderName;
 import weblink.http.HeaderValue;
+import weblink.tcp.ITcpClient;
 
 using StringTools;
 
@@ -192,8 +193,8 @@ class Request {
 		return obj;
 	}
 
-	private function response(parent:Server, socket):Response {
-		@:privateAccess var rep = new Response(socket, parent);
+	private function response(client:ITcpClient):Response {
+		@:privateAccess var rep = new Response(client);
 		var connection = headers.get("Connection");
 		if (connection != null)
 			@:privateAccess rep.close = connection == "close"; // assume keep alive HTTP 1.1

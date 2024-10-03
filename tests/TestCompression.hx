@@ -16,7 +16,7 @@ class TestCompression {
 		}, Compression.deflateCompressionMiddleware);
 		app.listen(2000, false);
 
-		sys.thread.Thread.create(() -> {
+		{
 			var http = new Http("http://localhost:2000");
 			var response:Bytes = null;
 			http.onBytes = function(bytes) {
@@ -29,12 +29,8 @@ class TestCompression {
 			if (response.compare(compressedData) != 0)
 				throw "get response compressed data does not match: " + response + " compressedData: " + compressedData;
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
+
 		trace("done");
 	}
 }

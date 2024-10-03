@@ -16,7 +16,7 @@ class Request {
 		});
 		app.listen(2000, false);
 
-		sys.thread.Thread.create(() -> {
+		{
 			var response = Http.requestUrl("http://localhost:2000");
 			if (response != data)
 				throw "post response data does not match: " + response + " data: " + data;
@@ -26,12 +26,8 @@ class Request {
 			if (http.responseData != data + data)
 				throw "post response data does not match: " + http.responseData + " data: " + data + data;
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
+
 		trace("done");
 	}
 }

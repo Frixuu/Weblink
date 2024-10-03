@@ -1,8 +1,9 @@
 package weblink;
 
 import haxe.http.HttpMethod;
+import sys.net.Host;
 import weblink.Handler;
-import weblink._internal.Server;
+import weblink._internal.WebServer;
 import weblink._internal.ds.RadixTree;
 import weblink.middleware.Middleware;
 import weblink.security.CredentialsProvider;
@@ -12,7 +13,7 @@ import weblink.security.OAuth.OAuthEndpoints;
 using haxe.io.Path;
 
 class Weblink {
-	public var server:Null<Server>;
+	public var server:Null<WebServer>;
 	public var routeTree:RadixTree<Handler>;
 
 	private var middlewareToChain:Array<Middleware> = [];
@@ -30,6 +31,10 @@ class Weblink {
 	var _path:String;
 	var _dir:String;
 	var _cors:String = "*";
+
+	private static function __init__():Void {
+		// hl.Gc.flags = hl.Gc.flags | hl.Gc.GcFlag.Profile;
+	}
 
 	public function new() {
 		this.routeTree = new RadixTree();
@@ -85,8 +90,8 @@ class Weblink {
 
 	public function listen(port:Int, blocking:Bool = true) {
 		this.pathNotFound = chainMiddleware(this.pathNotFound);
-		server = new Server(port, this);
-		server.update(blocking);
+		this.server = new WebServer(this);
+		this.server.listen(new Host("0.0.0.0"), port, blocking);
 	}
 
 	public function serve(path:String = "", dir:String = "", cors:String = "*") {
@@ -97,7 +102,7 @@ class Weblink {
 	}
 
 	public function close() {
-		server.close();
+		server.closeSync();
 	}
 
 	/**
@@ -105,7 +110,10 @@ class Weblink {
 	 */
 	public function jwks(jwks:Jwks, ?path = "/jwks"):Weblink {
 		get(path, (request:Request, response:Response) -> jwks.jwksGetEndpoint(request, response));
-		post(path, (request:Request, response:Response) -> jwks.jwksPostEndpoint(request, response));
+		post(path, (
+			request:Request,
+			response:Response
+		) -> jwks.jwksPostEndpoint(request, response));
 		return this;
 	}
 
@@ -115,7 +123,11 @@ class Weblink {
 		return this;
 	}
 
-	public function oauth2(secret_key:String, credentialsProvider:CredentialsProvider, ?path = "/token"):Weblink {
+	public function oauth2(
+		secret_key:String,
+		credentialsProvider:CredentialsProvider,
+		?path = "/token"
+	):Weblink {
 		var oauth2 = new OAuthEndpoints(path, secret_key, credentialsProvider);
 		post(path, oauth2.login_for_access_token);
 		return this;

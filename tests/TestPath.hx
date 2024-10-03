@@ -5,12 +5,11 @@ class TestPath {
 		trace("Starting Path Test");
 		var app = new weblink.Weblink();
 
-		//simply reimplement the route not found to confirm that doing this doesn't kill everything.
-		app.set_pathNotFound(function(request, response){
+		// simply reimplement the route not found to confirm that doing this doesn't kill everything.
+		app.set_pathNotFound(function(request, response) {
 			response.status = 404;
 			response.send("Error 404, Route Not found.");
 		});
-
 
 		var data = haxe.io.Bytes.ofString(Std.string(Std.random(10 * 1000))).toHex();
 		app.get("/path", function(request, response) {
@@ -27,7 +26,7 @@ class TestPath {
 		});
 		app.listen(2000, false);
 
-		sys.thread.Thread.create(() -> {
+		{
 			var response = Http.requestUrl("http://localhost:2000/path");
 			if (response != data)
 				throw "/path: post response data does not match: " + response + " data: " + data;
@@ -43,17 +42,13 @@ class TestPath {
 			try {
 				var nopath = Http.requestUrl("http://localhost:2000/notapath");
 			} catch (e) {
-				if(e.message != "Http Error #404"){
+				if (e.message != "Http Error #404") {
 					throw "/notapath should return a Status 404.";
 				}
 			}
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
+
 		trace("done");
 	}
 }

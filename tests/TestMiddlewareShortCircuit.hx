@@ -14,7 +14,7 @@ class TestMiddlewareShortCircuit {
 		});
 		app.listen(2000, false);
 
-		Thread.create(() -> {
+		{
 			final http = new Http("http://localhost:2000");
 			var response:Null<Bytes> = null;
 			http.onBytes = bytes -> response = bytes;
@@ -23,12 +23,8 @@ class TestMiddlewareShortCircuit {
 			if (response.toString() != "foo")
 				throw "not the response we expected";
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
+
 		trace("done");
 	}
 }

@@ -18,7 +18,7 @@ class TestCookie {
 		});
 		app.listen(2000, false);
 
-		sys.thread.Thread.create(() -> {
+		{
 			var http = new Http("http://localhost:2000");
 			http.onStatus = function(status) {
 				if (status == 200) {
@@ -31,12 +31,8 @@ class TestCookie {
 			http.request(false);
 
 			app.close();
-		});
-
-		while (app.server.running) {
-			app.server.update(false);
-			Sys.sleep(0.2);
 		}
+
 		trace("done");
 	}
 }
