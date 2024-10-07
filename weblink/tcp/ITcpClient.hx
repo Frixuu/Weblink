@@ -15,7 +15,7 @@ interface ITcpClient {
 		When no handler is active when data is incoming,
 		the connection should be closed.
 	**/
-	public var handler(default, default):Null<ITcpHandler>;
+	public var handler(get, set):Null<ITcpHandler>;
 
 	/**
 		Starts reading data from the client.

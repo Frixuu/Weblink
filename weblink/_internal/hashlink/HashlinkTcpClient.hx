@@ -24,7 +24,14 @@ final class HashlinkTcpClient implements ITcpClient {
 	/** 
 		TCP handler for incoming data.
 	**/
-	public var handler:Null<ITcpHandler>;
+	@:isVar
+	public var handler(get, set):Null<ITcpHandler>;
+
+	private inline function get_handler():Null<ITcpHandler>
+		return @:bypassAccessor this.handler;
+
+	private inline function set_handler(value:Null<ITcpHandler>):Null<ITcpHandler>
+		return @:bypassAccessor this.handler = value;
 
 	public function new(server:HashlinkTcpServer, innerClient:UvTcpHandle) {
 		this.server = server;

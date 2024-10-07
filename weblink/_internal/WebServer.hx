@@ -1,7 +1,12 @@
 package weblink._internal;
 
 import sys.net.Host;
+import sys.ssl.Certificate;
+import sys.ssl.Context.Config;
+import sys.ssl.Key;
 import weblink._internal.Http11TcpHandler;
+import weblink._internal.TlsTcpHandler;
+import weblink._internal.hashlink.mbedtls.AuthMode;
 import weblink.tcp.ITcpClient;
 import weblink.tcp.ITcpServer;
 #if hl
@@ -27,11 +32,29 @@ class WebServer {
 	**/
 	private var parent:Weblink;
 
+	private var tlsConfig:Config;
+
 	/**
 		Creates a new web server instance.
 	**/
 	public function new(app:Weblink) {
 		this.parent = app;
+
+		this.tlsConfig = new Config(true);
+
+		final caCert = Certificate.loadDefaults();
+		trace('caCert: ${caCert.commonName}');
+		this.tlsConfig.setCa(@:privateAccess caCert.__x);
+
+		final cert = Certificate.loadFile("cert.pem");
+		trace('cert: ${cert.commonName}');
+
+		final key = Key.loadFile("key.pem", false, "1234");
+		trace('key: ${key}');
+
+		this.tlsConfig.setCert(@:privateAccess cert.__x, @:privateAccess key.__k);
+		this.tlsConfig.setVerify(AuthMode.Optional);
+
 		#if hl
 		this.tcpServer = new HashlinkTcpServer();
 		#else
@@ -49,7 +72,8 @@ class WebServer {
 		#end
 
 		this.tcpServer.startAsync(host, port, (client:ITcpClient) -> {
-			client.handler = new Http11TcpHandler(this.parent, client);
+			// client.handler = new Http11TcpHandler(this.parent, client);
+			client.handler = new TlsTcpHandler(client, new Http11TcpHandler(this.parent, client), this.tlsConfig);
 		}, () -> {
 			#if (target.threaded)
 			startLock.release();
@@ -76,7 +100,11 @@ class WebServer {
 	}
 
 	public function closeAsync(?callback:() -> Void) {
-		this.tcpServer.closeAsync(callback);
+		this.tcpServer.closeAsync(() -> {
+			@:nullSafety(Off) callback();
+			this.tlsConfig.close();
+			// this.tlsConfig = null;
+		});
 	}
 
 	public function closeSync() {

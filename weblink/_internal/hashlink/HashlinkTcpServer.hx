@@ -22,6 +22,7 @@ using Lambda;
 **/
 @:nullSafety(StrictThreaded)
 final class HashlinkTcpServer implements ITcpServer {
+
 	private final closeLock:Lock;
 	private var innerServer:Null<UvTcpHandle>;
 	private var serverThread:Null<Thread>;
