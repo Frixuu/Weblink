@@ -104,18 +104,20 @@ final class TlsTcpHandler implements ITcpHandler {
 			throw "TLS context is null";
 		}
 
-		final lengthOrCode = tlsContext.recv(bufferDecoded, 0, buffer.length * 2);
-		switch (lengthOrCode) {
-			case -1:
-				trace("just filled the buffer, how is it blocking?");
-				return;
-			case 0:
-				trace("how did you receive 0 bytes???");
-				return;
-			case errorCode if (errorCode < 0):
-				throw 'TLS error $errorCode';
-			case length:
-				@:nullSafety(Off) this.innerHandler.onData(bufferDecoded.toBytes(length));
+		while (true) {
+			final lengthOrCode = tlsContext.recv(bufferDecoded, 0, buffer.length * 2);
+			switch (lengthOrCode) {
+				case -1:
+					trace("just filled the buffer, how is it blocking?");
+					break;
+				case 0:
+					trace("how did you receive 0 bytes???");
+					break;
+				case errorCode if (errorCode < 0):
+					throw 'TLS error $errorCode';
+				case length:
+					@:nullSafety(Off) this.innerHandler.onData(bufferDecoded.toBytes(length));
+			}
 		}
 	}
 
