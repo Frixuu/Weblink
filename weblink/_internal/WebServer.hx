@@ -34,6 +34,9 @@ class WebServer {
 
 	private var tlsConfig:Config;
 
+	private var ownCert:Certificate;
+	private var ownKey:Key;
+
 	/**
 		Creates a new web server instance.
 	**/
@@ -46,10 +49,12 @@ class WebServer {
 		trace('caCert: ${caCert.commonName}');
 		this.tlsConfig.setCa(@:privateAccess caCert.__x);
 
-		final cert = Certificate.loadFile("cert.pem");
+		this.ownCert = Certificate.loadFile("cert.pem");
+		final cert = this.ownCert;
 		trace('cert: ${cert.commonName}');
 
-		final key = Key.loadFile("key.pem", false, "1234");
+		this.ownKey = Key.loadFile("key.pem", false, "1234");
+		final key = this.ownKey;
 		trace('key: ${key}');
 
 		this.tlsConfig.setCert(@:privateAccess cert.__x, @:privateAccess key.__k);
