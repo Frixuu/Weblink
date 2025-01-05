@@ -6,8 +6,8 @@ import haxe.io.Encoding;
 import haxe.io.Eof;
 import weblink.Cookie;
 import weblink._internal.HttpStatusMessage;
-import weblink._internal.Server;
 import weblink._internal.Socket;
+import weblink._internal.WebServer;
 import weblink.http.HeaderMap;
 
 private typedef Write = (bytes:Bytes) -> Bytes;
@@ -20,10 +20,10 @@ class Response {
 	public var write:Null<Write>;
 
 	var socket:Null<Socket>;
-	var server:Null<Server>;
+	var server:Null<WebServer>;
 	var close:Bool = false; // default in HTTP/1.1
 
-	private function new(socket:Socket, server:Server) {
+	private function new(socket:Socket, server:WebServer) {
 		this.socket = socket;
 		this.server = server;
 		this.headers = new HeaderMap();

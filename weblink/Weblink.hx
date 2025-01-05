@@ -3,7 +3,7 @@ package weblink;
 import haxe.http.HttpMethod;
 import sys.net.Host;
 import weblink.Handler;
-import weblink._internal.Server;
+import weblink._internal.WebServer;
 import weblink._internal.ds.RadixTree;
 import weblink.middleware.Middleware;
 import weblink.security.CredentialsProvider;
@@ -14,7 +14,7 @@ using haxe.io.Path;
 
 class Weblink {
 	/** The internal web server. **/
-	public var server:Null<Server>;
+	public var server:Null<WebServer>;
 
 	public var routeTree:RadixTree<Handler>;
 
@@ -89,7 +89,7 @@ class Weblink {
 	public function listen(port:Int, blocking:Bool = true) {
 		this.pathNotFound = chainMiddleware(this.pathNotFound);
 
-		final server = this.server = new Server(this);
+		final server = this.server = new WebServer(this);
 		server.start(new Host("0.0.0.0"), port, blocking ? BlockUntilClosed : BlockUntilReady);
 	}
 

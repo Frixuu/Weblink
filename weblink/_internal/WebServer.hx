@@ -12,7 +12,7 @@ import sys.thread.Lock;
 import sys.thread.Thread;
 import weblink._internal.Socket;
 
-class Server extends SocketServer {
+class WebServer extends SocketServer {
 	/**
 		Is the server currently running?
 	**/
