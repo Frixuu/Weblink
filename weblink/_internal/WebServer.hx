@@ -3,30 +3,30 @@ package weblink._internal;
 import haxe.EntryPoint;
 import haxe.Exception;
 import haxe.Timer;
-import haxe.io.Bytes;
 import hl.Gc;
-import hl.uv.Loop;
 import sys.net.Host;
 import sys.thread.EventLoop;
 import sys.thread.Lock;
 import sys.thread.Thread;
-import weblink._internal.Socket;
+import weblink._internal.libuv.UvLoop;
+import weblink._internal.libuv.UvTcpHandle;
 
-class WebServer extends SocketServer {
+@:nullSafety(Off)
+class WebServer {
 	/**
 		Is the server currently running?
 	**/
 	public var running:Bool;
 
 	private final parent:Weblink;
-	private final uvLoop:Loop;
+	private final uvLoop:UvLoop;
+	private var tcpSocket:Null<UvTcpHandle>;
+
 	private var serverThread:Null<Thread>;
 	private var helperTimer:Null<Timer>;
 
 	public function new(app:Weblink) {
-		this.uvLoop = @:privateAccess Loop.default_loop(); // don't register MainLoop event
-		super(this.uvLoop);
-
+		this.uvLoop = UvLoop.defaultOrThrow();
 		this.parent = app;
 		this.running = false;
 	}
@@ -35,63 +35,65 @@ class WebServer extends SocketServer {
 		final lock = new Lock();
 
 		// Prepare the libuv TCP socket
-		super.bind(host, port);
-		super.noDelay(true);
+		final tcpSocket = this.tcpSocket = UvTcpHandle.initOrThrow(this.uvLoop);
+		tcpSocket.noDelay = true;
+		tcpSocket.bindOrThrow(host, port);
 
 		// Configure new connection callback
-		super.listen(100, function() {
+		tcpSocket.listenOrThrow(100, function() {
 			Gc.blocking(false);
 
-			final client = this.accept();
+			final client = tcpSocket.acceptOrThrow();
 
 			// Register a handler for incoming data (HTTP/1.1 specific)
 			var request:Null<Request> = null;
-			client.readStart(function(data:Null<Bytes>) @:privateAccess {
+			client.readStartOrThrow(data -> @:privateAccess {
 				Gc.blocking(false);
 
-				if (data == null) { // EOF
-					request = null;
-					client.close();
-					Gc.blocking(true);
-					return;
-				}
-
-				if (request == null) {
-					var lines = data.toString().split("\r\n");
-					request = new Request(lines);
-
-					if (request.pos >= request.length) {
-						complete(request, cast client);
+				switch (data) {
+					case Error(_):
 						request = null;
-						Gc.blocking(true);
-						return;
-					}
-				} else {
-					var length = request.length - request.pos < data.length ? request.length - request.pos : data.length;
-					request.data.blit(request.pos, data, 0, length);
-					request.pos += length;
+						client.closeAsync();
+					case Data(bytes):
+						if (request == null) {
+							final lines = bytes.toString().split("\r\n");
+							request = new Request(lines);
+							if (request.pos >= request.length) {
+								this.complete(request, client);
+								request = null;
+								Gc.blocking(true);
+								return;
+							}
+						} else {
+							final length = if (request.length - request.pos < bytes.length) {
+								request.length - request.pos;
+							} else {
+								bytes.length;
+							};
+							request.data.blit(request.pos, bytes, 0, length);
+							request.pos += length;
+							if (request.pos >= request.length) {
+								this.complete(request, client);
+								request = null;
+								Gc.blocking(true);
+								return;
+							}
+						}
 
-					if (request.pos >= request.length) {
-						complete(request, cast client);
-						request = null;
-						Gc.blocking(true);
-						return;
-					}
-				}
+						if (request.chunked) {
+							request.chunk(bytes.toString());
+							if (request.chunkSize == 0) {
+								this.complete(request, client);
+								request = null;
+								Gc.blocking(true);
+								return;
+							}
+						}
 
-				if (request.chunked) {
-					request.chunk(data.toString());
-					if (request.chunkSize == 0) {
-						complete(request, cast client);
-						request = null;
-						Gc.blocking(true);
-						return;
-					}
-				}
-
-				if (request.method != Post && request.method != Put) {
-					complete(request, cast client);
-					request = null;
+						if (request.method != Post && request.method != Put) {
+							this.complete(request, client);
+							request = null;
+						}
 				}
 
 				Gc.blocking(true);
@@ -165,7 +167,7 @@ class WebServer extends SocketServer {
 		lock.wait();
 	}
 
-	private function complete(request:Request, socket:Socket) {
+	private function complete(request:Request, socket:UvTcpHandle) {
 		@:privateAccess var response = request.response(this, socket);
 
 		if (request.method == Get
@@ -210,22 +212,26 @@ class WebServer extends SocketServer {
 		if (serverThread != null) {
 			final lock = new Lock();
 			serverThread.events.run(() -> {
-				this.close(() -> {
-					this.uvLoop.stop();
-					this.running = false;
+				final tcpSocket = this.tcpSocket;
+				this.tcpSocket = null;
+				if (tcpSocket != null) {
+					tcpSocket.closeAsync(() -> {
+						this.uvLoop.stop();
+						this.running = false;
 
-					final helperTimer = this.helperTimer;
-					this.helperTimer = null;
-					if (helperTimer != null) {
-						helperTimer.stop();
-					}
+						final helperTimer = this.helperTimer;
+						this.helperTimer = null;
+						if (helperTimer != null) {
+							helperTimer.stop();
+						}
 
-					lock.release();
+						lock.release();
 
-					// Allow the app to exit
-					final mainThread = @:privateAccess EntryPoint.mainThread;
-					mainThread.events.runPromised(() -> {});
-				});
+						// Allow the app to exit
+						final mainThread = @:privateAccess EntryPoint.mainThread;
+						mainThread.events.runPromised(() -> {});
+					});
+				}
 			});
 			lock.wait(10.0);
 		}

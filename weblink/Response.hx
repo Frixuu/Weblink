@@ -3,11 +3,11 @@ package weblink;
 import haxe.http.HttpStatus;
 import haxe.io.Bytes;
 import haxe.io.Encoding;
-import haxe.io.Eof;
 import weblink.Cookie;
 import weblink._internal.HttpStatusMessage;
-import weblink._internal.Socket;
 import weblink._internal.WebServer;
+import weblink._internal.libuv.UvException;
+import weblink._internal.libuv.UvTcpHandle;
 import weblink.http.HeaderMap;
 
 private typedef Write = (bytes:Bytes) -> Bytes;
@@ -19,11 +19,11 @@ class Response {
 	public var cookies:List<Cookie> = new List<Cookie>();
 	public var write:Null<Write>;
 
-	var socket:Null<Socket>;
+	var socket:Null<UvTcpHandle>;
 	var server:Null<WebServer>;
 	var close:Bool = false; // default in HTTP/1.1
 
-	private function new(socket:Socket, server:WebServer) {
+	private function new(socket:UvTcpHandle, server:WebServer) {
 		this.socket = socket;
 		this.server = server;
 		this.headers = new HeaderMap();
@@ -52,9 +52,9 @@ class Response {
 		}
 
 		try {
-			socket.writeString(collectHeaders(bytes.length).toString());
-			socket.writeBytes(bytes);
-		} catch (_:Eof) {
+			socket.writeBytesOrThrow(Bytes.ofString(this.collectHeaders(bytes.length).toString(), Encoding.UTF8));
+			socket.writeBytesOrThrow(bytes);
+		} catch (_:UvException) {
 			// The connection has already been closed, silently ignore
 		}
 
@@ -65,7 +65,7 @@ class Response {
 		status = MovedPermanently;
 		var string = initLine();
 		string += 'Location: $path\r\n\r\n';
-		socket.writeString(string);
+		socket.writeBytesOrThrow(Bytes.ofString(string, Encoding.UTF8));
 		end();
 	}
 
@@ -77,10 +77,10 @@ class Response {
 		this.server = null;
 		final socket = this.socket;
 		if (socket != null) {
-			if (this.close) {
-				socket.close();
-			}
 			this.socket = null;
+			if (this.close) {
+				socket.closeAsync();
+			}
 		}
 	}
 
